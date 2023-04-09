@@ -11,9 +11,7 @@ import model.ResponseType.RESPONSE_TYPES;
 
 public class dummyClient {
 
-    private void sendInvalidRequest(String ip, int port) throws IOException {
-        InetAddress IPAddress = InetAddress.getByName(ip);
-        RequestType req = new RequestType(4, 0, 0, 0, null);
+    private DatagramPacket receive_packet(int port, InetAddress IPAddress, RequestType req) throws IOException {
         byte[] sendData = req.toByteArray();
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
         DatagramSocket dsocket = new DatagramSocket();
@@ -21,6 +19,13 @@ public class dummyClient {
         byte[] receiveData = new byte[ResponseType.MAX_RESPONSE_SIZE];
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
         dsocket.receive(receivePacket);
+        return receivePacket;
+    }
+
+    private void sendInvalidRequest(String ip, int port) throws IOException {
+        InetAddress IPAddress = InetAddress.getByName(ip);
+        RequestType req = new RequestType(4, 0, 0, 0, null);
+        DatagramPacket receivePacket = receive_packet(port, IPAddress, req);
         ResponseType response = new ResponseType(receivePacket.getData());
         loggerManager.getInstance(this.getClass()).debug(response.toString());
     }
@@ -28,30 +33,16 @@ public class dummyClient {
     private FileListResponseType getFileList(String ip, int port) throws IOException {
         InetAddress IPAddress = InetAddress.getByName(ip);
         RequestType req = new RequestType(RequestType.REQUEST_TYPES.GET_FILE_LIST, 0, 0, 0, null);
-        byte[] sendData = req.toByteArray();
-        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
-        DatagramSocket dsocket = new DatagramSocket();
-        dsocket.send(sendPacket);
-        byte[] receiveData = new byte[ResponseType.MAX_RESPONSE_SIZE];
-        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-        dsocket.receive(receivePacket);
+        DatagramPacket receivePacket = receive_packet(port, IPAddress, req);
         FileListResponseType response = new FileListResponseType(receivePacket.getData());
-        //   loggerManager.getInstance(this.getClass()).debug(response.toString());
         return response;
     }
 
     private long getFileSize(String ip, int port, int file_id) throws IOException {
         InetAddress IPAddress = InetAddress.getByName(ip);
         RequestType req = new RequestType(RequestType.REQUEST_TYPES.GET_FILE_SIZE, file_id, 0, 0, null);
-        byte[] sendData = req.toByteArray();
-        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
-        DatagramSocket dsocket = new DatagramSocket();
-        dsocket.send(sendPacket);
-        byte[] receiveData = new byte[ResponseType.MAX_RESPONSE_SIZE];
-        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-        dsocket.receive(receivePacket);
+        DatagramPacket receivePacket = receive_packet(port, IPAddress, req);
         FileSizeResponseType response = new FileSizeResponseType(receivePacket.getData());
-        // loggerManager.getInstance(this.getClass()).debug(response.toString());
         return response.getFileSize();
     }
 
@@ -88,7 +79,6 @@ public class dummyClient {
         String ip1 = adr1[0];
         int port1 = Integer.valueOf(adr1[1]);
         dummyClient inst = new dummyClient();
-        //inst.sendInvalidRequest(ip1,port1);
         FileListResponseType response = inst.getFileList(ip1, port1);
         System.out.println("File List: ");
         for (FileDescriptor file : response.getFileDescriptors()) {
@@ -104,7 +94,7 @@ public class dummyClient {
         for (long start = 1; start <= size; start += 1000) {
             long end = size - start <= 999 ? size : start + 999;
             inst.getFileData(ip1, port1, num, start, end);
-            int j=0;
+            int j = 0;
         }
     }
 }
