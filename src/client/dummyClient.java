@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Scanner;
 
 import model.*;
@@ -45,7 +48,7 @@ public class dummyClient {
         FileSizeResponseType response = new FileSizeResponseType(receivePacket.getData());
         return response.getFileSize();
     }
-
+    public static String sss="";
     private void getFileData(String ip, int port, int file_id, long start, long end) throws IOException {
         InetAddress IPAddress = InetAddress.getByName(ip);
         RequestType req = new RequestType(RequestType.REQUEST_TYPES.GET_FILE_DATA, file_id, start, end, null);
@@ -66,8 +69,15 @@ public class dummyClient {
             if (response.getEnd_byte() > maxReceivedByte) {
                 maxReceivedByte = response.getEnd_byte();
             }
-            ;
+
         }
+        /*for(int i: receiveData){
+            System.out.print(i);
+        }*/
+        String s = Base64.getEncoder().encodeToString(receiveData);
+        sss+=s;
+
+
     }
 
     //how to tell start and end bytes.
@@ -96,5 +106,19 @@ public class dummyClient {
             inst.getFileData(ip1, port1, num, start, end);
             int j = 0;
         }
+        System.out.println("This is the md5 hash: "+generateMD5Hash(sss));
+
+    }
+    public static String generateMD5Hash(String text) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        md.update(text.getBytes());
+        byte[] digest = md.digest();
+
+        StringBuilder sb = new StringBuilder();
+        for (byte b : digest) {
+            sb.append(String.format("%02x", b & 0xff));
+        }
+
+        return sb.toString();
     }
 }
