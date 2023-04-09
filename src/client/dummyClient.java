@@ -100,19 +100,10 @@ public class dummyClient {
         System.out.println("File " + num + " has been selected. Getting the size information...");
         long size = inst.getFileSize(ip1, port1, num);
         System.out.println("File 2 is " + size + " bytes. Starting to download...");
-        long start= 1;
-        while(size!=0){
-            if(size>=1000){
-                long finish=start+1000;
-                inst.getFileData(ip1, port1, num,start,finish);
-                size-=1000;
-                start=finish+1;
-            }
-            else{
-                inst.getFileData(ip1,port1,num,start,start+size);
-            }
 
+        for (long start = 1; start <= size; start += 1000) {
+            final long end = size - start <= 1000 ? size : start + 1000;
+            inst.getFileData(ip1, port1, num, start, end);
         }
-
     }
 }
