@@ -8,8 +8,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.status.StatusLogger;
 
-public class loggerManager {
-	private static HashMap<Class<?>, Logger> loggers=null;
+public class LoggerManager {
+	private static HashMap<Class<?>, Logger> loggers;
 	  
 	public static Logger getInstance(Class<?> cls){
 		if (loggers==null){
