@@ -16,6 +16,7 @@ public class ClientManager {
     }
 
     public FileListResponseType getFileList() throws IOException {
+        //throw new IOException(); //For debugging
         send_packet(new RequestType(RequestType.REQUEST_TYPES.GET_FILE_LIST, 0, 0, 0, null));
         return new FileListResponseType(receive_packet_max_size().getData());
     }
@@ -39,9 +40,7 @@ public class ClientManager {
             full.add(response);
             /**this is for debugging, we break the download after 5 loops to switch servers*/
             i++;
-            if (i>3){
-                break;
-            }
+
         }
 
         return full;
