@@ -1,11 +1,11 @@
 package client;
 
 import model.*;
-import model.ResponseType.RESPONSE_TYPES;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.SocketException;
+import java.util.ArrayList;
 
 public class ClientManager {
 
@@ -27,17 +27,26 @@ public class ClientManager {
         return response.getFileSize();
     }
 
-    public void getFileData(int file_id, long start, long end) throws IOException {
+    public ArrayList<FileDataResponseType> getFileData(int file_id, long start, long end) throws IOException {
         send_packet(new RequestType(RequestType.REQUEST_TYPES.GET_FILE_DATA, file_id, start, end, null));
-
         long maxReceivedByte;
         FileDataResponseType response;
-        for (maxReceivedByte = -1, response = new FileDataResponseType(receive_packet_max_size().getData());
-             maxReceivedByte < end; maxReceivedByte = Math.max(response.getEnd_byte(), maxReceivedByte),
-                     response = new FileDataResponseType(receive_packet_max_size().getData())) {
+        ArrayList<FileDataResponseType> full=new ArrayList<>();
+        int i=0;
+        for (maxReceivedByte = -1;maxReceivedByte < end; maxReceivedByte = Math.max(response.getEnd_byte(), maxReceivedByte)) {
+            response = new FileDataResponseType(receive_packet_max_size().getData());
             debug(response.toString());
+            full.add(response);
+            /**this is for debugging, we break the download after 5 loops to switch servers*/
+            i++;
+            if (i>3){
+                break;
+            }
         }
+
+        return full;
     }
+
 
     public void debugInvalidResponse() throws IOException {
         debug(getInvalidResponse().toString());

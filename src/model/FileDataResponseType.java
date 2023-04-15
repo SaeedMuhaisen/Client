@@ -21,6 +21,14 @@ public class FileDataResponseType extends ResponseType {
 	public void setData(byte[] data){
 		this.data=data;
 	}
+	public void addData(byte[] data,long start,long end){
+		int j=0;
+
+		for(int i= (int) start;i<=end;i++){
+			this.data[i-1]=data[j];
+			j++;
+		}
+	}
 	
 	@Override
 	public String toString() {
