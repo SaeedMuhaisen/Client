@@ -8,6 +8,7 @@ import model.Network;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -39,7 +40,7 @@ public class Client {
         System.out.println("File " + fileId + " has been selected. Getting the size information...");
 
         long size = inst1.getFileSize(fileId);
-        System.out.println("File +"+ fileId+ " is " + size + " bytes. Starting to download...");
+        System.out.println("File "+ fileId+ " is " + size + " bytes. Starting to download...");
 
         long startByte=1;
         boolean switch_=true;
@@ -48,36 +49,27 @@ public class Client {
         FileDataResponseType file=new FileDataResponseType(3,fileId,startByte,size,new byte[(int) size]);
         long startTime = System.currentTimeMillis();
         long endTime;
-        while(!downloadFinished){
-            if(switch_) {
-                ClientManager inst = new ClientManager(new Network(ip1, port1));
-                response.addAll(inst.getFileData(fileId, startByte, size));
+        ClientManager clientManager;
 
-                if((response.get(response.size()-1).getEnd_byte())<size){
-                    startByte=response.get(response.size()-1).getEnd_byte()+1;
-                    switch_=false;
-                }
-                else{
-                    downloadFinished=true;
-                }
+        while(!downloadFinished){
+            clientManager = switch_ ?
+                    new ClientManager(new Network(ip1, port1)):
+                    new ClientManager(new Network(ip2, port2));
+
+            response.addAll(clientManager.getFileData(fileId, startByte, size));
+
+            if((response.get(response.size()-1).getEnd_byte())<size){
+                startByte=response.get(response.size()-1).getEnd_byte()+1;
+                switch_=false;
             }
             else{
-                ClientManager inst = new ClientManager(new Network(ip2, port2));
-                response.addAll(inst.getFileData(fileId, startByte, size));
-                if((response.get(response.size()-1).getEnd_byte())<size){
-                    startByte=response.get(response.size()-1).getEnd_byte()+1;
-                    switch_=false;
-                }
-                else{
-                    downloadFinished=true;
-
-                }
+                downloadFinished=true;
             }
 
         }
         endTime = System.currentTimeMillis();
         long elapsedTime = endTime - startTime;
-        System.out.println("time: "+elapsedTime+ "ms");
+
         /**
          * Combinging all responses into one response*/
 
@@ -93,7 +85,15 @@ public class Client {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        md.update(file.getData());
+        byte[] mdBytes = md.digest();
 
+        StringBuffer md5 = new StringBuffer();
+        for (int i = 0; i < mdBytes.length; i++) {
+            md5.append(Integer.toString((mdBytes[i] & 0xff) + 0x100, 16).substring(1));
+        }
+        System.out.println("File 2 has been downloaded in "+ elapsedTime +" ms. The md5 hash is " + md5 );
     }
 
 }
