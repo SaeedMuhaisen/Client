@@ -38,15 +38,11 @@ public class ClientManager {
         send_packet(new RequestType(RequestType.REQUEST_TYPES.GET_FILE_DATA, file_id, start, end, null));
         long maxReceivedByte;
         FileDataResponseType response;
-        List<FileDataResponseType> full=new ArrayList<>();
+        List<FileDataResponseType> full = new ArrayList<>();
         for (maxReceivedByte = -1; maxReceivedByte < end; maxReceivedByte = Math.max(response.getEnd_byte(), maxReceivedByte)) {
-            try {
-                response = new FileDataResponseType(receive_packet_max_size().getData());
-                debug(response.toString());
-                full.add(response);
-            } catch (IOException e) {
-                return full; // 1 - 2 - x3 - 4 - 5
-            }
+            response = new FileDataResponseType(receive_packet_max_size().getData());
+            debug(response.toString());
+            full.add(response);
         }
 
         return full;

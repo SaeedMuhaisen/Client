@@ -53,7 +53,7 @@ public class Client {
     }
 
     //how to tell start and end bytes.
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         if (args.length < 2) {
             throw new IllegalArgumentException("ip:port is mandatory");
         }
@@ -109,12 +109,10 @@ public class Client {
             }
 
             long startByte = 1;
-            boolean switch_ = true;
             boolean downloadFinished = false;
-            ArrayList<FileDataResponseType> response = new ArrayList<>();
-            FileDataResponseType file = new FileDataResponseType(3, fileId, startByte, size, new byte[(int) size]);
+            byte[] output = new byte[(int) size];
+
             long startTime = System.currentTimeMillis();
-            long restSize = size;
             long failureSize = 0;
 
             long firstLoadingTime = 0;
@@ -126,91 +124,81 @@ public class Client {
             long startPosition = 1;
             long failureStartPosition = 0;
 
-            while (!downloadFinished) { // -> false false false false -> true true false false false
+            while (!downloadFinished) {
+                final long restSize = size - startPosition + 1;
                 final long currentRestSize = failureSize == 0 ? restSize : failureSize;
-                long chunkSize = currentRestSize < ResponseType.MAX_RESPONSE_SIZE ? currentRestSize / 2 : ResponseType.MAX_RESPONSE_SIZE / 2;
+                long chunkSize = currentRestSize < ResponseType.MAX_DATA_SIZE * 2 ? currentRestSize / 2 : ResponseType.MAX_DATA_SIZE;
 
                 final long currentStartPosition = failureStartPosition == 0 ? startPosition : failureStartPosition;
 
+                failureSize = 0;
+                failureStartPosition = 0;
+
                 double chunkCoefficient = firstLoadingTime == 0 || secondLoadingTime == 0 ? 1
-                        : Math.round((double) firstDownloadedSize / firstLoadingTime / secondDownloadedSize / secondLoadingTime * 10.0) / 10.0;
+                        : (double) (firstLoadingTime * secondDownloadedSize) / (firstDownloadedSize * secondLoadingTime);
 
-                long secondChunkSize = (long) Math.floor(chunkSize * chunkCoefficient);
-                long firstChunkSize = 2 * chunkSize - secondChunkSize;
+                long secondChunkSize = (long) Math.floor(2 * chunkSize / (chunkCoefficient + 1));
+                long firstChunkSize = restSize % 2 == 0 ? 2 * chunkSize - secondChunkSize : 2 * chunkSize - secondChunkSize + 1;
 
-                long firstFinishByte = currentStartPosition + firstChunkSize;
-                long secondFinishByte = currentStartPosition + secondChunkSize + firstChunkSize;
+                long firstFinishByte = currentStartPosition + firstChunkSize - 1;
+                long secondFinishByte = currentStartPosition + secondChunkSize + firstChunkSize - 1;
 
-                long firstStartTime = System.currentTimeMillis();
-                List<FileDataResponseType> currentFirstResponse = firstClientManager.getFileData(fileId, currentStartPosition, firstFinishByte);
+                try {
+                    long firstStartTime = System.currentTimeMillis();
+                    List<FileDataResponseType> currentFirstResponse = firstClientManager.getFileData(fileId, currentStartPosition, firstFinishByte);
+                    firstDownloadedSize = firstFinishByte - currentStartPosition + 1;
+                    firstLoadingTime = System.currentTimeMillis() - firstStartTime;
 
-                if (currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte() < firstFinishByte) {
-                    failureStartPosition = currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte() + 1;
-                    failureSize = firstFinishByte - currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte();
+                    for (FileDataResponseType fileDataResponseType : currentFirstResponse) {
+                        final byte[] dataArray = fileDataResponseType.toByteArray();
+                        final int startIndex = (int) fileDataResponseType.getStart_byte() - 1;
+                        final int endIndex = (int) fileDataResponseType.getEnd_byte() - 1;
+
+
+                        if (endIndex + 1 - startIndex >= 0)
+                            System.arraycopy(dataArray, 0, output, startIndex, endIndex + 1 - startIndex);
+                    }
+                } catch (IOException e) {
+                    failureStartPosition = currentStartPosition;
+                    failureSize = firstFinishByte - currentStartPosition;
                     continue;
                 }
 
-                firstDownloadedSize = currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte() - currentStartPosition;
-                firstLoadingTime = System.currentTimeMillis() - firstStartTime;
+                List<FileDataResponseType> currentSecondResponse;
+                try {
+                    long secondStartTime = System.currentTimeMillis();
+                    currentSecondResponse = secondClientManager.getFileData(fileId, firstFinishByte + 1, secondFinishByte);
+                    secondDownloadedSize = secondFinishByte - currentStartPosition - firstChunkSize + 1;
+                    secondLoadingTime = System.currentTimeMillis() - secondStartTime;
 
-                long secondStartTime = System.currentTimeMillis();
-                List<FileDataResponseType> currentSecondResponse = secondClientManager.getFileData(fileId, currentStartPosition + firstChunkSize, secondFinishByte);
-                secondDownloadedSize = currentSecondResponse.get(currentFirstResponse.size() - 1).getEnd_byte() - currentStartPosition + firstChunkSize;
-                secondLoadingTime = System.currentTimeMillis() - secondStartTime;
+                    for (FileDataResponseType fileDataResponseType : currentSecondResponse) {
+                        final byte[] dataArray = fileDataResponseType.toByteArray();
+                        final int startIndex = (int) fileDataResponseType.getStart_byte() - 1;
+                        final int endIndex = (int) fileDataResponseType.getEnd_byte() - 1;
 
-                if (currentSecondResponse.get(currentFirstResponse.size() - 1).getEnd_byte() < firstFinishByte) {
-                    if (failureStartPosition == 0) failureStartPosition = currentSecondResponse.get(currentFirstResponse.size() - 1).getEnd_byte() + 1;
-                    failureSize = secondFinishByte - currentSecondResponse.get(currentSecondResponse.size() - 1).getEnd_byte();
+
+                        if (endIndex + 1 - startIndex >= 0)
+                            System.arraycopy(dataArray, 0, output, startIndex, endIndex + 1 - startIndex);
+                    }
+                } catch (IOException e) {
+                    startPosition = currentStartPosition + firstChunkSize + 1;
                     continue;
                 }
 
-                startPosition = currentSecondResponse.get(currentSecondResponse.size() - 1).getEnd_byte() + 1;
-                restSize -= secondFinishByte - startByte;
+                startPosition = secondFinishByte + 1;
 
-
-//                long finalStartByte = startByte;
-//
-//                ClientManager finalCurrentClientManager = switch_ ? firstClientManager : secondClientManager;
-//                Callable<ArrayList<FileDataResponseType>> task = () -> finalCurrentClientManager.getFileData(fileId, finalStartByte, size);
-//                // create a FutureTask<Boolean> instance and pass the task to its constructor
-//                FutureTask<ArrayList<FileDataResponseType>> futureTask = new FutureTask<>(task);
-//                // create a new thread and start it with the FutureTask as its target
-//                Thread thread = new Thread(futureTask);
-//                thread.start();
-//                // wait for the task to complete, but with a time constraint of X seconds
-//                try {
-//                    response.addAll(futureTask.get(3, TimeUnit.SECONDS));
-//                    // do something with the result
-//                } catch (TimeoutException e) {
-//
-//                } catch (ExecutionException | InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-//
-//                if (response.isEmpty()) {
-//                    System.out.println("Switching!!!!!!!");
-//                    switch_ = !switch_;
-//                } else if ((response.get(response.size() - 1).getEnd_byte()) < size) {
-//                    System.out.println("Switching!!!!!!!");
-//                    startByte = response.get(response.size() - 1).getEnd_byte() + 1;
-//                    switch_ = false;
-//                } else {
-//                    downloadFinished = true;
-//                }
+                downloadFinished = startPosition == size + 1;
             }
+
             long endTime = System.currentTimeMillis();
             long elapsedTime = endTime - startTime;
 
             /**
              * Combinging all responses into one response*/
 
-            for (FileDataResponseType fileDataResponseType : response) {
-                file.addData(fileDataResponseType.getData(), fileDataResponseType.getStart_byte(), fileDataResponseType.getEnd_byte());
-            }
-
             try {
                 FileOutputStream fos = new FileOutputStream("output.txt");
-                fos.write(file.getData());
+                fos.write(output);
                 fos.close();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -223,7 +211,7 @@ public class Client {
                 e.printStackTrace();
             }
 
-            md.update(file.getData());
+            md.update(output);
             byte[] mdBytes = md.digest();
 
             StringBuffer md5 = new StringBuffer();
