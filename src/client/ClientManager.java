@@ -25,7 +25,12 @@ public class ClientManager {
         send_packet(new RequestType(RequestType.REQUEST_TYPES.GET_FILE_SIZE, file_id, 0, 0, null));
 
         FileSizeResponseType response = new FileSizeResponseType(receive_packet_max_size().getData());
-        return response.getFileSize();
+
+        if (response.getFileSize() > 0) {
+            return response.getFileSize();
+        } else {
+            throw new IOException("There is no such file");
+        }
     }
 
     public ArrayList<FileDataResponseType> getFileData(int file_id, long start, long end) throws IOException {
@@ -34,7 +39,7 @@ public class ClientManager {
         FileDataResponseType response;
         ArrayList<FileDataResponseType> full=new ArrayList<>();
         int i=0;
-        for (maxReceivedByte = -1;maxReceivedByte < end; maxReceivedByte = Math.max(response.getEnd_byte(), maxReceivedByte)) {
+        for (maxReceivedByte = -1; maxReceivedByte < end; maxReceivedByte = Math.max(response.getEnd_byte(), maxReceivedByte)) {
             response = new FileDataResponseType(receive_packet_max_size().getData());
            // debug(response.toString());
             full.add(response);
@@ -48,11 +53,14 @@ public class ClientManager {
 
 
     public void debugInvalidResponse() throws IOException {
-        debug(getInvalidResponse().toString());
+        final long start = System.currentTimeMillis();
+        final ResponseType responseType = getInvalidResponse();
+        debug(String.valueOf(System.currentTimeMillis() - start));
+        debug(responseType.toString());
     }
 
     private ResponseType getInvalidResponse() throws IOException {
-        send_packet(new RequestType(4, 0, 0, 0, null));
+        send_packet(new RequestType(3, 1, 1, 1, null));
         return new ResponseType(receive_packet_max_size().getData());
     }
 
