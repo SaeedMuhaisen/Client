@@ -217,7 +217,7 @@ public class Client {
                 e.printStackTrace();
             }
 
-            md.update(output);
+            md.update(file.getData());
             byte[] mdBytes = md.digest();
 
             StringBuffer md5 = new StringBuffer();
