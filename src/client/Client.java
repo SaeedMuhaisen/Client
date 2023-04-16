@@ -118,34 +118,29 @@ public class Client {
             long firstLoadingTime = 0;
             long secondLoadingTime = 0;
 
-            long firstStartByte = 1;
-            long secondStartByte = 1;
+            long startPosition = 1;
 
-            List<FileDataResponseType> firstResponses = new ArrayList<>();
-            List<FileDataResponseType> secondResponses = new ArrayList<>();
-
-            while (!downloadFinished) { // 1231 -- 615 616
+            while (!downloadFinished) { // 1 - 1000 | 1001 - 2000
                 long chunkSize = restSize < ResponseType.MAX_RESPONSE_SIZE ? restSize / 2 : ResponseType.MAX_RESPONSE_SIZE / 2;
 
                 double chunkCoefficient = firstLoadingTime == 0 || secondLoadingTime == 0 ? 1
                         : Math.round((double) firstLoadingTime / secondLoadingTime * 10.0) / 10.0;
 
                 long secondChunkSize = (long) Math.floor(chunkSize * chunkCoefficient);
+                long firstChunkSize = 2 * chunkSize - secondChunkSize;
 
-                long secondFinishByte = firstStartByte + secondChunkSize;
-                long firstFinishByte = secondStartByte + 2 * chunkSize - secondChunkSize;
+                long firstFinishByte = startPosition + firstChunkSize;
+                long secondFinishByte = startPosition + secondChunkSize + firstChunkSize;
 
                 long firstStartTime = System.currentTimeMillis();
-                List<FileDataResponseType> currentFirstResponse = firstClientManager.getFileData(fileId, firstStartByte, firstFinishByte);
+                List<FileDataResponseType> currentFirstResponse = firstClientManager.getFileData(fileId, startPosition, firstFinishByte);
                 firstLoadingTime = System.currentTimeMillis() - firstStartTime;
 
                 long secondStartTime = System.currentTimeMillis();
-                List<FileDataResponseType> currentSecondResponse = secondClientManager.getFileData(fileId, secondStartByte, secondFinishByte);
+                List<FileDataResponseType> currentSecondResponse = secondClientManager.getFileData(fileId, startPosition + firstChunkSize, secondFinishByte);
                 secondLoadingTime = System.currentTimeMillis() - secondStartTime;
 
-
-                firstStartByte = currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte();
-                secondStartByte = currentSecondResponse.get(currentSecondResponse.size() - 1).getEnd_byte();
+                startPosition = currentSecondResponse.get(currentSecondResponse.size() - 1).getEnd_byte() + 1;
 
 
 //                long finalStartByte = startByte;
