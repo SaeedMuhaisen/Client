@@ -1,9 +1,6 @@
 package client;
 
-import model.FileDataResponseType;
-import model.FileDescriptor;
-import model.FileListResponseType;
-import model.Network;
+import model.*;
 import org.apache.log4j.Logger;
 
 import java.io.FileOutputStream;
@@ -13,6 +10,7 @@ import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.*;
 
@@ -115,39 +113,70 @@ public class Client {
             ArrayList<FileDataResponseType> response = new ArrayList<>();
             FileDataResponseType file = new FileDataResponseType(3, fileId, startByte, size, new byte[(int) size]);
             long startTime = System.currentTimeMillis();
+            long restSize = size;
 
-            ClientManager currentClientManager;
-            while (!downloadFinished) {
-                long finalStartByte = startByte;
+            long firstLoadingTime = 0;
+            long secondLoadingTime = 0;
 
-                ClientManager finalCurrentClientManager = switch_ ? firstClientManager : secondClientManager;
-                long finalSize = 3000;
-                Callable<ArrayList<FileDataResponseType>> task = () -> finalCurrentClientManager.getFileData(fileId, finalStartByte, finalSize);
-                // create a FutureTask<Boolean> instance and pass the task to its constructor
-                FutureTask<ArrayList<FileDataResponseType>> futureTask = new FutureTask<>(task);
-                // create a new thread and start it with the FutureTask as its target
-                Thread thread = new Thread(futureTask);
-                thread.start();
-                // wait for the task to complete, but with a time constraint of X seconds
-                try {
-                    response.addAll(futureTask.get(3, TimeUnit.SECONDS));
-                    // do something with the result
-                } catch (TimeoutException e) {
+            long firstStartByte = 1;
+            long secondStartByte = 1;
 
-                } catch (ExecutionException | InterruptedException e) {
-                    e.printStackTrace();
-                }
+            List<FileDataResponseType> firstResponses = new ArrayList<>();
+            List<FileDataResponseType> secondResponses = new ArrayList<>();
 
-                if (response.isEmpty()) {
-                    System.out.println("Switching!!!!!!!");
-                    switch_ = !switch_;
-                } else if ((response.get(response.size() - 1).getEnd_byte()) < finalSize) {
-                    System.out.println("Switching!!!!!!!");
-                    startByte = response.get(response.size() - 1).getEnd_byte() + 1;
-                    switch_ = false;
-                } else {
-                    downloadFinished = true;
-                }
+            while (!downloadFinished) { // 1231 -- 615 616
+                long chunkSize = restSize < ResponseType.MAX_RESPONSE_SIZE ? restSize / 2 : ResponseType.MAX_RESPONSE_SIZE / 2;
+
+                double chunkCoefficient = firstLoadingTime == 0 || secondLoadingTime == 0 ? 1
+                        : Math.round((double) firstLoadingTime / secondLoadingTime * 10.0) / 10.0;
+
+                long secondChunkSize = (long) Math.floor(chunkSize * chunkCoefficient);
+
+                long secondFinishByte = firstStartByte + secondChunkSize;
+                long firstFinishByte = secondStartByte + 2 * chunkSize - secondChunkSize;
+
+                long firstStartTime = System.currentTimeMillis();
+                List<FileDataResponseType> currentFirstResponse = firstClientManager.getFileData(fileId, firstStartByte, firstFinishByte);
+                firstLoadingTime = System.currentTimeMillis() - firstStartTime;
+
+                long secondStartTime = System.currentTimeMillis();
+                List<FileDataResponseType> currentSecondResponse = secondClientManager.getFileData(fileId, secondStartByte, secondFinishByte);
+                secondLoadingTime = System.currentTimeMillis() - secondStartTime;
+
+
+                firstStartByte = currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte();
+                secondStartByte = currentSecondResponse.get(currentSecondResponse.size() - 1).getEnd_byte();
+
+
+//                long finalStartByte = startByte;
+//
+//                ClientManager finalCurrentClientManager = switch_ ? firstClientManager : secondClientManager;
+//                Callable<ArrayList<FileDataResponseType>> task = () -> finalCurrentClientManager.getFileData(fileId, finalStartByte, size);
+//                // create a FutureTask<Boolean> instance and pass the task to its constructor
+//                FutureTask<ArrayList<FileDataResponseType>> futureTask = new FutureTask<>(task);
+//                // create a new thread and start it with the FutureTask as its target
+//                Thread thread = new Thread(futureTask);
+//                thread.start();
+//                // wait for the task to complete, but with a time constraint of X seconds
+//                try {
+//                    response.addAll(futureTask.get(3, TimeUnit.SECONDS));
+//                    // do something with the result
+//                } catch (TimeoutException e) {
+//
+//                } catch (ExecutionException | InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+//
+//                if (response.isEmpty()) {
+//                    System.out.println("Switching!!!!!!!");
+//                    switch_ = !switch_;
+//                } else if ((response.get(response.size() - 1).getEnd_byte()) < size) {
+//                    System.out.println("Switching!!!!!!!");
+//                    startByte = response.get(response.size() - 1).getEnd_byte() + 1;
+//                    switch_ = false;
+//                } else {
+//                    downloadFinished = true;
+//                }
             }
             long endTime = System.currentTimeMillis();
             long elapsedTime = endTime - startTime;
@@ -183,8 +212,6 @@ public class Client {
             }
             System.out.println("File " + fileId + " downloaded in " + elapsedTime + " ms. The md5 hash is " + md5);
             System.out.println();
-
-            firstClientManager.debugInvalidResponse();
         }
     }
 

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.List;
 
 public class ClientManager {
 
@@ -33,35 +34,29 @@ public class ClientManager {
         }
     }
 
-    public ArrayList<FileDataResponseType> getFileData(int file_id, long start, long end) throws IOException {
+    public List<FileDataResponseType> getFileData(int file_id, long start, long end) throws IOException {
         send_packet(new RequestType(RequestType.REQUEST_TYPES.GET_FILE_DATA, file_id, start, end, null));
         long maxReceivedByte;
         FileDataResponseType response;
-        ArrayList<FileDataResponseType> full=new ArrayList<>();
-        int i=0;
+        List<FileDataResponseType> full=new ArrayList<>();
         for (maxReceivedByte = -1; maxReceivedByte < end; maxReceivedByte = Math.max(response.getEnd_byte(), maxReceivedByte)) {
             response = new FileDataResponseType(receive_packet_max_size().getData());
             debug(response.toString());
             full.add(response);
-            /**this is for debugging, we break the download after 5 loops to switch servers*/
-            i++;
-
         }
 
         return full;
     }
 
 
-    public void debugInvalidResponse() throws IOException {
+    public long checkLatency() throws IOException {
         final long start = System.currentTimeMillis();
-        final ResponseType responseType = getInvalidResponse();
-        debug(String.valueOf(System.currentTimeMillis() - start));
-        debug(responseType.toString());
+        sendInvalidResponse();
+        return start - System.currentTimeMillis();
     }
 
-    private ResponseType getInvalidResponse() throws IOException {
-        send_packet(new RequestType(3, 1, 1, 1, null));
-        return new ResponseType(receive_packet_max_size().getData());
+    private void sendInvalidResponse() throws IOException {
+        send_packet(new RequestType(-1, 1, 1, 1, null));
     }
 
     private void send_packet(RequestType req) throws IOException {
