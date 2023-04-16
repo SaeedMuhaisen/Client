@@ -121,16 +121,16 @@ public class Client {
                 long finalStartByte = startByte;
 
                 ClientManager finalCurrentClientManager = switch_ ? firstClientManager : secondClientManager;
-                long finalSize = size;
+                long finalSize = 3000;
                 Callable<ArrayList<FileDataResponseType>> task = () -> finalCurrentClientManager.getFileData(fileId, finalStartByte, finalSize);
                 // create a FutureTask<Boolean> instance and pass the task to its constructor
                 FutureTask<ArrayList<FileDataResponseType>> futureTask = new FutureTask<>(task);
                 // create a new thread and start it with the FutureTask as its target
                 Thread thread = new Thread(futureTask);
                 thread.start();
-                // wait for the task to complete, but with a time constraint of 3 seconds
+                // wait for the task to complete, but with a time constraint of X seconds
                 try {
-                    response.addAll(futureTask.get(1, TimeUnit.NANOSECONDS));
+                    response.addAll(futureTask.get(3, TimeUnit.SECONDS));
                     // do something with the result
                 } catch (TimeoutException e) {
 
@@ -141,7 +141,7 @@ public class Client {
                 if (response.isEmpty()) {
                     System.out.println("Switching!!!!!!!");
                     switch_ = !switch_;
-                } else if ((response.get(response.size() - 1).getEnd_byte()) < size) {
+                } else if ((response.get(response.size() - 1).getEnd_byte()) < finalSize) {
                     System.out.println("Switching!!!!!!!");
                     startByte = response.get(response.size() - 1).getEnd_byte() + 1;
                     switch_ = false;

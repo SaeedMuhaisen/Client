@@ -41,7 +41,7 @@ public class ClientManager {
         int i=0;
         for (maxReceivedByte = -1; maxReceivedByte < end; maxReceivedByte = Math.max(response.getEnd_byte(), maxReceivedByte)) {
             response = new FileDataResponseType(receive_packet_max_size().getData());
-           // debug(response.toString());
+            debug(response.toString());
             full.add(response);
             /**this is for debugging, we break the download after 5 loops to switch servers*/
             i++;
