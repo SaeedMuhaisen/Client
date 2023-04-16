@@ -40,9 +40,13 @@ public class ClientManager {
         FileDataResponseType response;
         List<FileDataResponseType> full=new ArrayList<>();
         for (maxReceivedByte = -1; maxReceivedByte < end; maxReceivedByte = Math.max(response.getEnd_byte(), maxReceivedByte)) {
-            response = new FileDataResponseType(receive_packet_max_size().getData());
-            debug(response.toString());
-            full.add(response);
+            try {
+                response = new FileDataResponseType(receive_packet_max_size().getData());
+                debug(response.toString());
+                full.add(response);
+            } catch (IOException e) {
+                return full; // 1 - 2 - x3 - 4 - 5
+            }
         }
 
         return full;
