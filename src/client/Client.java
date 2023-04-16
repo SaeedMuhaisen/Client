@@ -124,6 +124,8 @@ public class Client {
             long startPosition = 1;
             long failureStartPosition = 0;
 
+            ArrayList<FileDataResponseType> full =new ArrayList<>();
+
             while (!downloadFinished) {
                 final long restSize = size - startPosition + 1;
                 final long currentRestSize = failureSize == 0 ? restSize : failureSize;
@@ -148,6 +150,7 @@ public class Client {
                     List<FileDataResponseType> currentFirstResponse = firstClientManager.getFileData(fileId, currentStartPosition, firstFinishByte);
                     firstDownloadedSize = firstFinishByte - currentStartPosition + 1;
                     firstLoadingTime = System.currentTimeMillis() - firstStartTime;
+                    full.addAll(currentFirstResponse);
 
                     for (FileDataResponseType fileDataResponseType : currentFirstResponse) {
                         final byte[] dataArray = fileDataResponseType.toByteArray();
@@ -170,7 +173,7 @@ public class Client {
                     currentSecondResponse = secondClientManager.getFileData(fileId, firstFinishByte + 1, secondFinishByte);
                     secondDownloadedSize = secondFinishByte - currentStartPosition - firstChunkSize + 1;
                     secondLoadingTime = System.currentTimeMillis() - secondStartTime;
-
+                    full.addAll(currentSecondResponse);
                     for (FileDataResponseType fileDataResponseType : currentSecondResponse) {
                         final byte[] dataArray = fileDataResponseType.toByteArray();
                         final int startIndex = (int) fileDataResponseType.getStart_byte() - 1;
@@ -195,10 +198,13 @@ public class Client {
 
             /**
              * Combinging all responses into one response*/
-
+            FileDataResponseType file = new FileDataResponseType(3,fileId,1,size,new byte[(int) size]);
+            for (FileDataResponseType fileDataResponseType : full) {
+                file.addData(fileDataResponseType.getData(), fileDataResponseType.getStart_byte(), fileDataResponseType.getEnd_byte());
+            }
             try {
                 FileOutputStream fos = new FileOutputStream("output.txt");
-                fos.write(output);
+                fos.write(file.getData());
                 fos.close();
             } catch (IOException e) {
                 e.printStackTrace();
