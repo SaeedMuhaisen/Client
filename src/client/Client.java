@@ -115,6 +115,7 @@ public class Client {
             FileDataResponseType file = new FileDataResponseType(3, fileId, startByte, size, new byte[(int) size]);
             long startTime = System.currentTimeMillis();
             long restSize = size;
+            long failureSize = 0;
 
             long firstLoadingTime = 0;
             long secondLoadingTime = 0;
@@ -123,11 +124,13 @@ public class Client {
             long secondDownloadedSize = 0;
 
             long startPosition = 1;
+            long failureStartPosition = 0;
 
-            final byte[] output = new byte[(int) size];
+            while (!downloadFinished) { // -> false false false false -> true true false false false
+                final long currentRestSize = failureSize == 0 ? restSize : failureSize;
+                long chunkSize = currentRestSize < ResponseType.MAX_RESPONSE_SIZE ? currentRestSize / 2 : ResponseType.MAX_RESPONSE_SIZE / 2;
 
-            while (!downloadFinished) { // -> true true true true -> true true false false false
-                long chunkSize = restSize < ResponseType.MAX_RESPONSE_SIZE ? restSize / 2 : ResponseType.MAX_RESPONSE_SIZE / 2;
+                final long currentStartPosition = failureStartPosition == 0 ? startPosition : failureStartPosition;
 
                 double chunkCoefficient = firstLoadingTime == 0 || secondLoadingTime == 0 ? 1
                         : Math.round((double) firstDownloadedSize / firstLoadingTime / secondDownloadedSize / secondLoadingTime * 10.0) / 10.0;
@@ -135,33 +138,33 @@ public class Client {
                 long secondChunkSize = (long) Math.floor(chunkSize * chunkCoefficient);
                 long firstChunkSize = 2 * chunkSize - secondChunkSize;
 
-                long firstFinishByte = startPosition + firstChunkSize;
-                long secondFinishByte = startPosition + secondChunkSize + firstChunkSize;
+                long firstFinishByte = currentStartPosition + firstChunkSize;
+                long secondFinishByte = currentStartPosition + secondChunkSize + firstChunkSize;
 
                 long firstStartTime = System.currentTimeMillis();
-                List<FileDataResponseType> currentFirstResponse = firstClientManager.getFileData(fileId, startPosition, firstFinishByte);
-
-                long finalStartPosition = startPosition;
+                List<FileDataResponseType> currentFirstResponse = firstClientManager.getFileData(fileId, currentStartPosition, firstFinishByte);
 
                 if (currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte() < firstFinishByte) {
-                    startByte = currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte() + 1;
-                    restSize = firstFinishByte - currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte();
+                    failureStartPosition = currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte() + 1;
+                    failureSize = firstFinishByte - currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte();
+                    continue;
                 }
 
-                firstDownloadedSize = currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte() - startPosition;
+                firstDownloadedSize = currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte() - currentStartPosition;
                 firstLoadingTime = System.currentTimeMillis() - firstStartTime;
 
-//                if (currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte() + 1 != firstFinishByte) {
-//
-//                } // 1 - x2 | 3 - 4  4000
-
                 long secondStartTime = System.currentTimeMillis();
-                List<FileDataResponseType> currentSecondResponse = secondClientManager.getFileData(fileId, startPosition + firstChunkSize, secondFinishByte);
-                secondDownloadedSize = currentFirstResponse.get(currentFirstResponse.size() - 1).getEnd_byte() - startPosition + firstChunkSize;
+                List<FileDataResponseType> currentSecondResponse = secondClientManager.getFileData(fileId, currentStartPosition + firstChunkSize, secondFinishByte);
+                secondDownloadedSize = currentSecondResponse.get(currentFirstResponse.size() - 1).getEnd_byte() - currentStartPosition + firstChunkSize;
                 secondLoadingTime = System.currentTimeMillis() - secondStartTime;
 
-                startPosition = currentSecondResponse.get(currentSecondResponse.size() - 1).getEnd_byte() + 1;
+                if (currentSecondResponse.get(currentFirstResponse.size() - 1).getEnd_byte() < firstFinishByte) {
+                    if (failureStartPosition == 0) failureStartPosition = currentSecondResponse.get(currentFirstResponse.size() - 1).getEnd_byte() + 1;
+                    failureSize = secondFinishByte - currentSecondResponse.get(currentSecondResponse.size() - 1).getEnd_byte();
+                    continue;
+                }
 
+                startPosition = currentSecondResponse.get(currentSecondResponse.size() - 1).getEnd_byte() + 1;
                 restSize -= secondFinishByte - startByte;
 
 
