@@ -41,7 +41,6 @@ public class ClientManager {
         List<FileDataResponseType> full = new ArrayList<>();
         for (maxReceivedByte = -1; maxReceivedByte < end; maxReceivedByte = Math.max(response.getEnd_byte(), maxReceivedByte)) {
             response = new FileDataResponseType(receive_packet_max_size().getData());
-            debug(response.toString());
             full.add(response);
         }
 

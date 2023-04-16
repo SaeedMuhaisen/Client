@@ -126,6 +126,10 @@ public class Client {
 
             ArrayList<FileDataResponseType> full =new ArrayList<>();
 
+            long totalForFirst = 0;
+            long totalForSecond = 0;
+            int stepCounter = 1;
+
             while (!downloadFinished) {
                 final long restSize = size - startPosition + 1;
                 final long currentRestSize = failureSize == 0 ? restSize : failureSize;
@@ -191,10 +195,24 @@ public class Client {
                 startPosition = secondFinishByte + 1;
 
                 downloadFinished = startPosition == size + 1;
+
+                System.out.println("Step " + stepCounter);
+                System.out.println("The average speed of the first connection " + firstDownloadedSize / firstLoadingTime + " byte/ms");
+                System.out.println("The average speed of the second connection " + secondDownloadedSize / secondLoadingTime  + " byte/ms");
+                System.out.println("Elapsed time " + (System.currentTimeMillis() - startTime) + "ms");
+
+                totalForFirst += firstDownloadedSize;
+                totalForSecond += secondDownloadedSize;
+                System.out.println("Percentage completed " + Math.round((double) (totalForFirst + totalForSecond) / size * 100) + "%");
+                System.out.println();
+                stepCounter++;
             }
 
             long endTime = System.currentTimeMillis();
             long elapsedTime = endTime - startTime;
+
+            System.out.println("The average speed for the first port " + Math.round((double) totalForFirst / elapsedTime) + " byte/ms");
+            System.out.println("The average speed for the second port " + Math.round((double) totalForSecond / elapsedTime) + " byte/ms");
 
             /**
              * Combinging all responses into one response*/
